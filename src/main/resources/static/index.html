@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>选择页</title>
+</head>
+<body>
+用户名:<input type="text" id="username" placeholder="请输入用户名"> <br>
+<button id="enter">进入系统</button>
+</body>
+<script>
+    const oUsername = document.querySelector("#username")
+    const oBtn = document.querySelector("#enter")
+
+    const init = () => {
+      bindEvent()
+    }
+
+    function handleEnterBtnClick() {
+        const username = oUsername.value.trim()
+        if (username.length < 2) {
+            alert("用户名长度不得小于3!")
+            return
+        }
+        localStorage.setItem("username", username)
+        location.href = 'ws.html'
+    }
+
+    function bindEvent() {
+        oBtn.addEventListener('click', handleEnterBtnClick, false)
+    }
+
+
+    init()
+</script>
+</html>
