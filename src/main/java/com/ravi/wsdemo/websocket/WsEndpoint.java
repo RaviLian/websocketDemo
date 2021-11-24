@@ -8,10 +8,9 @@ import javax.websocket.*;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
-import java.util.Enumeration;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArraySet;
+
 
 @Slf4j
 @Component
@@ -20,10 +19,7 @@ public class WsEndpoint {
 	//静态变量，用来记录当前在线连接数。应该把它设计成线程安全的。
 	private static int onlineCount = 0;
 
-	//concurrent包的线程安全Set，用来存放每个客户端对应的MyWebSocket对象。
-	private static CopyOnWriteArraySet<WsEndpoint> webSocketSet = new CopyOnWriteArraySet<WsEndpoint>();
-
-	private static ConcurrentHashMap<String,Object> clients = new ConcurrentHashMap<String,Object>();
+	private static final ConcurrentHashMap<String,WsEndpoint> websocketMap = new ConcurrentHashMap<String,WsEndpoint>();
 
 	//与某个客户端的连接会话，需要通过它来给客户端发送数据
 	private Session session;
@@ -44,9 +40,9 @@ public class WsEndpoint {
 	 * @param type 备注类型，后期可能会写更多ServerEncoder这样的类作为编码器加入到Ws支持中
 	 */
 	public static void sendMessage2All(Object message,String type) {
-		Set<String> keys = clients.keySet();
+		Set<String> keys = websocketMap.keySet();
 		for (String  key: keys) {
-			WsEndpoint item  = (WsEndpoint)clients.get(key);
+			WsEndpoint item  = websocketMap.get(key);
 			try {
 				WsMessage msg = new WsMessage();
 				R r = R.ok();
@@ -66,11 +62,12 @@ public class WsEndpoint {
 	 * @param username 客户端唯一标识
 	 */
 	public static void SendMessage2Sb(Object message, String username) {
-		Set<String> keys = clients.keySet();
+		Set<String> keys = websocketMap.keySet();
 		log.info("当前在线者有: " + keys);
+		log.info("需要发送给: " + username);
 		for (String key : keys) {
 			if (key.equals(username)) {
-				WsEndpoint item  = (WsEndpoint)clients.get(key);
+				WsEndpoint item  = websocketMap.get(key);
 				try {
 					WsMessage msg = new WsMessage();
 					R r = R.ok();
@@ -103,15 +100,15 @@ public class WsEndpoint {
 	@OnOpen
 	public void onOpen(Session session, @PathParam("username") String username) {
 		this.session = session;
-		if(clients.get(username) != null){
-			Object obj = clients.get(username);
-			webSocketSet.remove(obj);
-		}
-		webSocketSet.add(this);     //加入set中
-		clients.put(username,this);
 		this.username = username;
-		addOnlineCount();           //在线数加1
-		log.info("有新连接加入！当前在线人数为" + getOnlineCount());
+		if(websocketMap.containsKey(username)){
+			websocketMap.remove(username);
+			websocketMap.put(username, this);
+		}else {
+			websocketMap.put(username, this);
+			addOnlineCount();           //在线数加1
+		}
+		log.info("用户" + username + "连接, 当前在线人数为: " + getOnlineCount());
 		try {
 			WsMessage msg = new WsMessage();
 			R r = R.ok();
@@ -128,10 +125,11 @@ public class WsEndpoint {
 	 */
 	@OnClose
 	public void onClose(@PathParam("username") String username) {
-		webSocketSet.remove(this);  //从set中删除
-		clients.remove(username);
-		subOnlineCount();           //在线数减1
-		log.info("有一连接关闭！当前在线人数为" + getOnlineCount());
+		if (websocketMap.containsKey(username)) {
+			websocketMap.remove(username);
+			subOnlineCount();  //在线数减1
+		}
+		log.info("用户" + username + "退出！当前在线人数为: " + getOnlineCount());
 	}
 
 	/**
