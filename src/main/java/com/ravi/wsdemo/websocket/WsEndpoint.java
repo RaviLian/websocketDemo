@@ -2,6 +2,7 @@ package com.ravi.wsdemo.websocket;
 
 import com.ravi.wsdemo.resp.R;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import javax.websocket.*;
@@ -10,6 +11,7 @@ import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 
 @Slf4j
@@ -35,24 +37,52 @@ public class WsEndpoint {
 	}
 
 	/**
-	 * 发送给所有连接的客户端
-	 * @param message 消息类，这里使用统一回复模板WsMessage，魔改RestApiResponse
-	 * @param type 备注类型，后期可能会写更多ServerEncoder这样的类作为编码器加入到Ws支持中
+	 * 给导诊屏和医生端的信息推送
+	 * 需要检测导诊屏Type和医生Type
+	 * @param message 单独诊室的信息推送
+	 * @param roomName 诊室id
 	 */
-	public static void sendMessage2All(Object message,String type) {
+	public static void sendSingleCheckMessage2sameRoom(Object message, String roomName) {
 		Set<String> keys = websocketMap.keySet();
-		for (String  key: keys) {
-			WsEndpoint item  = websocketMap.get(key);
-			try {
-				WsMessage msg = new WsMessage();
-				R r = R.ok();
-				r.put("data",message);
-				r.put("msgType",type);
-				msg.setMessage(r);
-				item.sendMessage(msg);
-			} catch (Exception e) {
-				e.printStackTrace();
+		Set<String> sameRoom = new CopyOnWriteArraySet<>();
+		for (String key : keys) {
+			if (StringUtils.contains(key, roomName)) {
+				sameRoom.add(key);
 			}
+		}
+		for (String client : sameRoom) {
+			sendWsMessage(message, client);
+		}
+	}
+
+	public static void sendAdminGlobal(Object message) {
+		Set<String> keys = websocketMap.keySet();
+		Set<String> adminClients = new CopyOnWriteArraySet<>();
+		for (String key : keys) {
+			if (StringUtils.contains(key, "admin")) {
+				adminClients.add(key);
+			}
+		}
+		for (String client : adminClients) {
+			sendWsMessage(message, client);
+		}
+	}
+
+	/**
+	 * 发消息的进一步封装
+	 * @param message 消息
+	 * @param client 客户端
+	 */
+	private static void sendWsMessage(Object message, String client) {
+		WsEndpoint item  = websocketMap.get(client);
+		try {
+			WsMessage msg = new WsMessage();
+			R r = R.ok();
+			r.put("data",message);
+			msg.setMessage(r);
+			item.sendMessage(msg);
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -67,16 +97,7 @@ public class WsEndpoint {
 		log.info("需要发送给: " + username);
 		for (String key : keys) {
 			if (key.equals(username)) {
-				WsEndpoint item  = websocketMap.get(key);
-				try {
-					WsMessage msg = new WsMessage();
-					R r = R.ok();
-					r.put("data",message);
-					msg.setMessage(r);
-					item.sendMessage(msg);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
+				sendWsMessage(message, key);
 				break;
 			}
 		}

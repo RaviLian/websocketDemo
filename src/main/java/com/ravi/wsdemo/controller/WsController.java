@@ -25,7 +25,7 @@ public class WsController {
 		ret.add(new Patient("王3", "男"));
 		ret.add(new Patient("王4", "男"));
 		//WsEndpoint.sendMessage2All(ret, "WsMessage");
-		WsEndpoint.SendMessage2Sb(ret, "lzl");
+		WsEndpoint.SendMessage2Sb(ret, "admin01");
 	}
 
 	@GetMapping("/global")
@@ -37,20 +37,21 @@ public class WsController {
 
 		CheckRoom room1 = new CheckRoom();
 		CheckRoom room2 = new CheckRoom();
-		room1.setRoomName("彩超1室");
+		room1.setRoomName("CaiChao1");
 		room1.setCheckPatient(p1);
 		LinkedBlockingDeque<Patient> waitingList1 = room1.getWaitingList();
 		waitingList1.add(p2);
 		waitingList1.add(p3);
 
-		room2.setRoomName("采样室");
+		room2.setRoomName("CYS");
 		room2.setCheckPatient(null);
 		room2.getWaitingList().add(p4);
 
 		List<CheckRoom> allRooms = new ArrayList<>();
 		allRooms.add(room1);
 		allRooms.add(room2);
-		WsEndpoint.sendMessage2All(allRooms, "List");
+		WsEndpoint.sendAdminGlobal(allRooms);
+		WsEndpoint.sendSingleCheckMessage2sameRoom(room1, room1.getRoomName());
 		return "ok";
 	}
 }
