@@ -1,5 +1,6 @@
 package com.ravi.wsdemo.controller;
 
+import com.ravi.wsdemo.entity.CheckRoom;
 import com.ravi.wsdemo.entity.Patient;
 import com.ravi.wsdemo.websocket.WsEndpoint;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,6 +10,7 @@ import javax.websocket.EncodeException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingDeque;
 
 @RestController
 public class WsController {
@@ -24,5 +26,31 @@ public class WsController {
 		ret.add(new Patient("王4", "男"));
 		//WsEndpoint.sendMessage2All(ret, "WsMessage");
 		WsEndpoint.SendMessage2Sb(ret, "lzl");
+	}
+
+	@GetMapping("/global")
+	public String sendGlobal() {
+		Patient p1 = new Patient("张佳", "女");
+		Patient p2 = new Patient("王楠", "女");
+		Patient p3 = new Patient("张妙", "女");
+		Patient p4 = new Patient("张可", "女");
+
+		CheckRoom room1 = new CheckRoom();
+		CheckRoom room2 = new CheckRoom();
+		room1.setRoomName("彩超1室");
+		room1.setCheckPatient(p1);
+		LinkedBlockingDeque<Patient> waitingList1 = room1.getWaitingList();
+		waitingList1.add(p2);
+		waitingList1.add(p3);
+
+		room2.setRoomName("采样室");
+		room2.setCheckPatient(null);
+		room2.getWaitingList().add(p4);
+
+		List<CheckRoom> allRooms = new ArrayList<>();
+		allRooms.add(room1);
+		allRooms.add(room2);
+		WsEndpoint.sendMessage2All(allRooms, "List");
+		return "ok";
 	}
 }
